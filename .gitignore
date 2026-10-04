@@ -1,0 +1,32 @@
+# Dataset (download manually, see docs/data.md) — never commit
+data/
+# Secrets
+.env
+*.env.local
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+.uv-cache/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+# Generated reports (keep reports/.gitkeep)
+reports/*
+!reports/.gitkeep
+# Notebooks / IDE
+.ipynb_checkpoints/
+.idea/
+.vscode/
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl.bak
+# Build artifacts
+*.tar
+sbom-*.json
+# Agent instructions
+CLAUDE.md

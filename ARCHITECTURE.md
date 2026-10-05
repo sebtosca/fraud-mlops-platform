@@ -30,7 +30,7 @@ flowchart LR
   Jobs <--> S3
   Jobs <--> PG
   Jobs -- register / move aliases --> MLflow
-  PG --> CaseSummary[case-summary service] --> VLLM[vLLM<br/>Ministral 3 8B] 
+  PG --> CaseSummary[case-summary service] --> VLLM[vLLM<br/>Ministral 3 8B]
   CaseSummary -- traces --> MLflow
 ```
 

@@ -1,0 +1,57 @@
+[project]
+name = "fraud-mlops-platform"
+version = "0.1.0"
+description = "Local MLOps platform for real-time card-fraud detection"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = ["fraud-core"]
+
+[tool.uv]
+package = false
+# Workspace-wide pin (RESEARCH §04): pandera and PySpark are not ready for pandas 3.
+constraint-dependencies = ["pandas>=2.2,<3"]
+
+[tool.uv.sources]
+fraud-core = { workspace = true }
+
+[tool.uv.workspace]
+# Add services/<name> here as each service gets its own pyproject.toml.
+members = ["packages/fraud-core"]
+
+[dependency-groups]
+dev = [
+    "boto3-stubs[s3]>=1.43.108",
+    "moto[s3]>=5.2.3",
+    "mypy",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fraud"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "packages/fraud-core/src"
+packages = ["fraud"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: needs the Compose stack running (make up)",
+]
+
+[tool.coverage.run]
+relative_files = true
+source = ["fraud"]

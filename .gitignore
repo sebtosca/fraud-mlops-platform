@@ -30,3 +30,5 @@ reports/*
 sbom-*.json
 # Agent instructions
 CLAUDE.md
+# Python build output
+dist/

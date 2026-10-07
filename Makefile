@@ -6,8 +6,11 @@ help:
 	@echo "Targets: up down ps logs ingest test lint demo"
 
 # Start Postgres, SeaweedFS, Kafka and MLflow; returns once all are healthy.
+# `--wait` only names long-running services: a one-shot job nothing depends on (kafka-init)
+# that exits while others are still starting makes `--wait` fail. It runs explicitly after.
 up: .env
-	$(COMPOSE) up -d --build --wait
+	$(COMPOSE) up -d --build --wait postgres s3 kafka mlflow
+	$(COMPOSE) run --rm -T kafka-init
 
 # Stop the stack. Data volumes are kept; `$(COMPOSE) down -v` deletes them.
 down:

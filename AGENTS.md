@@ -113,5 +113,6 @@ Copied from THREAT-MODEL.md. For security-sensitive work, also use the `security
 - On macOS, AirPlay Receiver also listens on port 5000, so `localhost:5000` (IPv6 first) hits AirPlay and returns 403. Use `127.0.0.1:5000` or `mlflow:5000`, or turn off AirPlay Receiver in System Settings.
 - MLflow runs with `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false`: job execution starts ~8 extra processes (~1.6 GiB) and was OOM-killed at 768m. Re-enable it only with a larger limit (Phase 9).
 - `.env` must exist before `make up` (copy `.env.example`, replace every `change-me`). Postgres reads `POSTGRES_USER`/`POSTGRES_PASSWORD`; keep `DATABASE_URL` in sync. The init SQL only runs on an empty volume: after changing it, `docker compose … down -v`.
+- `docker compose up --wait` fails at random when a one-shot job that nothing depends on exits while other services are still starting; `make up` waits only for the long-running services and runs `kafka-init` explicitly. Give future one-shot jobs a dependent (`service_completed_successfully`) or run them the same way.
 - Use `docker exec -i` (or `compose exec -T`) to pipe a script into a container; `compose run` with a heredoc hangs waiting for stdin.
 - `CLAUDE.md` is in `.gitignore`; this file is the project's agent instructions.

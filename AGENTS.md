@@ -30,7 +30,8 @@ The owner codes most of it by hand: guide step by step unless asked to write the
 - Secret scan of the full history: `docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact`
 - Regenerate the test fixture: `uv run python scripts/make_fixture.py`
 - Add a dependency: `uv add --package fraud-core <pkg>`; dev tool: `uv add --dev <pkg>`
-- Start / stop the stack: `make up` / `make down` (planned, P1.T3)
+- Start / stop the stack: `make up` / `make down` (also `make ps`, `make logs`); `make up` returns once every service is healthy
+- Run a command in a service: `docker compose --env-file .env -f deploy/compose/docker-compose.yml exec <service> …`
 - Migrate the DB: `uv run fraud db migrate` (planned, P1.T4)
 - Ingest the dataset: `make ingest` (planned, P1.T7)
 - End-to-end demo: `make demo` (planned, P5.T9)
@@ -109,5 +110,8 @@ Copied from THREAT-MODEL.md. For security-sensitive work, also use the `security
 - `docker` comes from OrbStack (`~/.orbstack/bin`, added to PATH by `~/.zprofile`); a shell opened before OrbStack's first launch won't find it.
 - Postgres 18 images mount their volume at `/var/lib/postgresql`, not `/var/lib/postgresql/data`.
 - Hostnames in `.env` (`postgres`, `s3`, `mlflow`, `fraud-kafka-kafka-bootstrap`) resolve on the host through an `/etc/hosts` line pointing them at `127.0.0.1`.
-- `S3ObjectStore.put_bytes(if_absent=True)` relies on `IfNoneMatch`, verified on moto but not yet on SeaweedFS (check in P1.T3).
+- On macOS, AirPlay Receiver also listens on port 5000, so `localhost:5000` (IPv6 first) hits AirPlay and returns 403. Use `127.0.0.1:5000` or `mlflow:5000`, or turn off AirPlay Receiver in System Settings.
+- MLflow runs with `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false`: job execution starts ~8 extra processes (~1.6 GiB) and was OOM-killed at 768m. Re-enable it only with a larger limit (Phase 9).
+- `.env` must exist before `make up` (copy `.env.example`, replace every `change-me`). Postgres reads `POSTGRES_USER`/`POSTGRES_PASSWORD`; keep `DATABASE_URL` in sync. The init SQL only runs on an empty volume: after changing it, `docker compose … down -v`.
+- Use `docker exec -i` (or `compose exec -T`) to pipe a script into a container; `compose run` with a heredoc hangs waiting for stdin.
 - `CLAUDE.md` is in `.gitignore`; this file is the project's agent instructions.

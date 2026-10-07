@@ -1,25 +1,25 @@
 # Progress: Fraud ML Platform
 
 Plan: PLAN.md · Last updated: 2026-10-07 19:50
-Overall: 5/92 tasks · Phase 1 of 11
+Overall: 6/92 tasks · Phase 1 of 11
 PRD coverage: 0/72 stories verified
 
 ## Current state
-- **Working on:** next up, P1.T3 — Compose infrastructure stack.
-- **Status / approach:** P1.T1, P1.T2, P1.T5, P1.T6 and P1.T10 are done on branch `data_drift`. Docker now works (OrbStack 29.4; `docker` is on PATH in new terminals via `~/.zprofile`). Before P1.T3, the owner must add `127.0.0.1  postgres s3 mlflow fraud-kafka-kafka-bootstrap` to `/etc/hosts` (needs sudo). P1.T3 plan: build `deploy/compose/docker-compose.yml` one service at a time (Postgres → SeaweedFS → Kafka → MLflow), every port published as `127.0.0.1:<port>:<port>` (TM-001), memory limits per RESEARCH §08 (Postgres 512m, SeaweedFS 400m, Kafka 1.25g, MLflow 512m). Postgres 18 volume at `/var/lib/postgresql`.
-- **Also open:** P1.T9 (logging and invariant tests) needs no Docker.
-- **Next after this:** P1.T4 — Fraud database schema and migration runner. In P1.T3, also check that SeaweedFS honours `IfNoneMatch="*"`; if it does not, `S3ObjectStore.put_bytes` needs a head-then-put fallback.
+- **Working on:** next up, P1.T4 — Fraud database schema and migration runner.
+- **Status / approach:** P1.T1–T3, P1.T5, P1.T6 and P1.T10 are done. The Compose stack runs (`make up`). Host-run code (pytest integration tests, `fraud db migrate`) needs `/etc/hosts` to map `postgres s3 mlflow fraud-kafka-kafka-bootstrap` to 127.0.0.1 (owner action, needs sudo; see Blockers). P1.T4: numbered SQL files in `migrations/`, `fraud.db.migrate` runner with a `schema_migrations` table, `fraud db migrate` CLI (Typer), integration test against the Compose Postgres.
+- **Also open:** P1.T9 (logging and invariant tests) needs no Docker; its port rule can now check the real `docker-compose.yml`.
+- **Next after this:** P1.T7 — Ingest job (bronze → silver snapshots).
 
 ## Blockers
-None. (Docker was resolved on 2026-10-07: OrbStack was installed but had never been opened.)
+- **`/etc/hosts` entry missing** (needs sudo, owner action): `127.0.0.1  postgres s3 mlflow fraud-kafka-kafka-bootstrap`. Without it, code on the host cannot resolve the `.env` hostnames. It blocks P1.T4's integration test, not the stack itself.
 
 ## Phases
 Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 
-### Phase 1 — Repo and local platform skeleton (5/10)
+### Phase 1 — Repo and local platform skeleton (6/10)
 - [x] P1.T1 — Repo scaffold and uv workspace (US-1) · 2026-10-05 · ad8b8fa
 - [x] P1.T2 — Settings and infrastructure adapters (ports and adapters) (US-1) · 2026-10-07 · 3ecb912
-- [ ] P1.T3 — Compose infrastructure stack (US-1)
+- [x] P1.T3 — Compose infrastructure stack (US-1, TM-001, TM-005) · 2026-10-07 · see session log
 - [ ] P1.T4 — Fraud database schema and migration runner (US-1)
 - [x] P1.T5 — Transaction data contract (pandera) (US-3) · 2026-10-07 · 527e3b3
 - [x] P1.T6 — Sample fixture and data download guide (US-2) · 2026-10-07 · fcffd34
@@ -131,6 +131,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P11.T8 — Go-public checklist (TM-102, TM-104)
 
 ## Deviations from plan
+- 2026-10-07 · P1.T3 · SeaweedFS runs as `weed mini` with `-bucket=lake,mlflow` and its S3 identity from `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, so `deploy/compose/seaweedfs-s3.json` (listed in PLAN) is not needed; a one-shot `s3-init` (aws-cli) enables versioning. MLflow needs `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false` and a 768m limit (512m in RESEARCH §08): 3.16's job runner adds ~1.6 GiB. Postgres pinned to 18.6. `.env.example` gains `POSTGRES_USER`/`POSTGRES_PASSWORD`. On macOS the Done-when `curl localhost:5000/health` must use `127.0.0.1` (AirPlay owns `[::1]:5000`).
 - 2026-10-07 · P1.T6 · The fixture has 12 fraud episodes (6 per year) and 40 background cards, 2,828 rows / 736 KiB, so `check-added-large-files` allows 1 MiB. Offsets use `datetime.timedelta` because pandas 2.3 + NumPy 2.5 warns on every `pd.Timedelta`.
 - 2026-10-07 · P1.T10 · The dependency audit uses uv's built-in `uv audit` (experimental, OSV database) instead of pip-audit or Trivy. The CI secret scan runs the official gitleaks image pinned by digest instead of the gitleaks GitHub Action (one less third-party action). The gitleaks pre-commit hook is skipped in the CI lint job, because it only scans staged changes; the `secrets` job scans the full history.
 - 2026-10-05 · P1.T1 · ruff and ruff-format in pre-commit are limited to `.py`/`.pyi` files: ruff 0.16 also reformats Python code blocks inside Markdown and rewrote about 800 lines of `research/*.md`. `trailing-whitespace` keeps Markdown line breaks.
@@ -142,6 +143,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - 2026-10-07 · Commits · The P1.T1 commit (ad8b8fa) also holds most of P1.T2, and its message overstates what it contains (no drift detection or promotion exists yet). The PR description corrects this.
 
 ## Session log
+- 2026-10-07 · P1.T3 · Compose stack healthy in ~40 s; all ports on 127.0.0.1; buckets `lake`/`mlflow` with versioning; `local.transactions` 6 partitions; DBs mlflow/airflow/fraud_local; MLflow artifact round trip through the proxy; ~0.9 GiB total. **SeaweedFS honours `IfNoneMatch`** (write-once verified on the real store).
 - 2026-10-07 · P1.T10 · gitleaks pre-commit hook and CI history scan (both proven to block a fake AWS key; real history clean, 10 commits), all Actions pinned by SHA, Dependabot, `uv audit` job (no known vulnerabilities in 66 packages) · 5035007
 - 2026-10-07 · P1.T6 · `docs/data.md`, `scripts/make_fixture.py` (deterministic), `tests/fixtures/sparkov_sample.csv` (2,828 rows, 52 cards, 147 fraud rows), 6 fixture tests (43 total passing) · fcffd34
 - 2026-10-07 · Docker unblocked: OrbStack opened for the first time; docker 29.4 client and server.

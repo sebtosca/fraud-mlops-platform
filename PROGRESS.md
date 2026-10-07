@@ -19,7 +19,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 ### Phase 1 — Repo and local platform skeleton (6/10)
 - [x] P1.T1 — Repo scaffold and uv workspace (US-1) · 2026-10-05 · ad8b8fa
 - [x] P1.T2 — Settings and infrastructure adapters (ports and adapters) (US-1) · 2026-10-07 · 3ecb912
-- [x] P1.T3 — Compose infrastructure stack (US-1, TM-001, TM-005) · 2026-10-07 · see session log
+- [x] P1.T3 — Compose infrastructure stack (US-1, TM-001, TM-005) · 2026-10-07 · 44769eb
 - [ ] P1.T4 — Fraud database schema and migration runner (US-1)
 - [x] P1.T5 — Transaction data contract (pandera) (US-3) · 2026-10-07 · 527e3b3
 - [x] P1.T6 — Sample fixture and data download guide (US-2) · 2026-10-07 · fcffd34
@@ -143,7 +143,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - 2026-10-07 · Commits · The P1.T1 commit (ad8b8fa) also holds most of P1.T2, and its message overstates what it contains (no drift detection or promotion exists yet). The PR description corrects this.
 
 ## Session log
-- 2026-10-07 · P1.T3 · Compose stack healthy in ~40 s; all ports on 127.0.0.1; buckets `lake`/`mlflow` with versioning; `local.transactions` 6 partitions; DBs mlflow/airflow/fraud_local; MLflow artifact round trip through the proxy; ~0.9 GiB total. **SeaweedFS honours `IfNoneMatch`** (write-once verified on the real store).
+- 2026-10-07 · P1.T3 · Compose stack healthy in ~40 s; all ports on 127.0.0.1; buckets `lake`/`mlflow` with versioning; `local.transactions` 6 partitions; DBs mlflow/airflow/fraud_local; MLflow artifact round trip through the proxy; ~0.9 GiB total. **SeaweedFS honours `IfNoneMatch`** (write-once verified on the real store) · 44769eb
 - 2026-10-07 · P1.T10 · gitleaks pre-commit hook and CI history scan (both proven to block a fake AWS key; real history clean, 10 commits), all Actions pinned by SHA, Dependabot, `uv audit` job (no known vulnerabilities in 66 packages) · 5035007
 - 2026-10-07 · P1.T6 · `docs/data.md`, `scripts/make_fixture.py` (deterministic), `tests/fixtures/sparkov_sample.csv` (2,828 rows, 52 cards, 147 fraud rows), 6 fixture tests (43 total passing) · fcffd34
 - 2026-10-07 · Docker unblocked: OrbStack opened for the first time; docker 29.4 client and server.

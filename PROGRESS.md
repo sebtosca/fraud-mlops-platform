@@ -6,12 +6,12 @@ PRD coverage: 0/72 stories verified
 
 ## Current state
 - **Working on:** next up, P1.T4 — Fraud database schema and migration runner.
-- **Status / approach:** P1.T1–T3, P1.T5, P1.T6 and P1.T10 are done. The Compose stack runs (`make up`). Host-run code (pytest integration tests, `fraud db migrate`) needs `/etc/hosts` to map `postgres s3 mlflow fraud-kafka-kafka-bootstrap` to 127.0.0.1 (owner action, needs sudo; see Blockers). P1.T4: numbered SQL files in `migrations/`, `fraud.db.migrate` runner with a `schema_migrations` table, `fraud db migrate` CLI (Typer), integration test against the Compose Postgres.
+- **Status / approach:** P1.T1–T3, P1.T5, P1.T6 and P1.T10 are done. The Compose stack runs (`make up`). `/etc/hosts` maps the service names to 127.0.0.1, so host-run code uses `.env` unchanged. P1.T4: numbered SQL files in `migrations/`, `fraud.db.migrate` runner with a `schema_migrations` table, `fraud db migrate` CLI (Typer), integration test against the Compose Postgres.
 - **Also open:** P1.T9 (logging and invariant tests) needs no Docker; its port rule can now check the real `docker-compose.yml`.
 - **Next after this:** P1.T7 — Ingest job (bronze → silver snapshots).
 
 ## Blockers
-- **`/etc/hosts` entry missing** (needs sudo, owner action): `127.0.0.1  postgres s3 mlflow fraud-kafka-kafka-bootstrap`. Without it, code on the host cannot resolve the `.env` hostnames. It blocks P1.T4's integration test, not the stack itself.
+None. (`/etc/hosts` line added 2026-10-07; host code reaches Postgres, S3, MLflow and Kafka by their `.env` names.)
 
 ## Phases
 Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
@@ -143,6 +143,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - 2026-10-07 · Commits · The P1.T1 commit (ad8b8fa) also holds most of P1.T2, and its message overstates what it contains (no drift detection or promotion exists yet). The PR description corrects this.
 
 ## Session log
+- 2026-10-07 · Postgres password rotated by the owner (applied with `ALTER USER`); `make up` race with `kafka-init` fixed (47b992d); `/etc/hosts` line added and verified from host code.
 - 2026-10-07 · P1.T3 · Compose stack healthy in ~40 s; all ports on 127.0.0.1; buckets `lake`/`mlflow` with versioning; `local.transactions` 6 partitions; DBs mlflow/airflow/fraud_local; MLflow artifact round trip through the proxy; ~0.9 GiB total. **SeaweedFS honours `IfNoneMatch`** (write-once verified on the real store) · 44769eb
 - 2026-10-07 · P1.T10 · gitleaks pre-commit hook and CI history scan (both proven to block a fake AWS key; real history clean, 10 commits), all Actions pinned by SHA, Dependabot, `uv audit` job (no known vulnerabilities in 66 packages) · 5035007
 - 2026-10-07 · P1.T6 · `docs/data.md`, `scripts/make_fixture.py` (deterministic), `tests/fixtures/sparkov_sample.csv` (2,828 rows, 52 cards, 147 fraud rows), 6 fixture tests (43 total passing) · fcffd34

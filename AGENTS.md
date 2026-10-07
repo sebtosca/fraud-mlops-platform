@@ -26,6 +26,9 @@ The owner codes most of it by hand: guide step by step unless asked to write the
 - Lint + format + typecheck: `uv run pre-commit run --all-files` (or `make lint`)
 - Typecheck only: `uv run mypy`
 - Build the package: `uv build --package fraud-core`
+- Dependency audit: `uv audit --locked --preview-features audit-command`
+- Secret scan of the full history: `docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact`
+- Regenerate the test fixture: `uv run python scripts/make_fixture.py`
 - Add a dependency: `uv add --package fraud-core <pkg>`; dev tool: `uv add --dev <pkg>`
 - Start / stop the stack: `make up` / `make down` (planned, P1.T3)
 - Migrate the DB: `uv run fraud db migrate` (planned, P1.T4)
@@ -102,7 +105,8 @@ Copied from THREAT-MODEL.md. For security-sensitive work, also use the `security
 - `Settings()` needs `# type: ignore[call-arg]`: mypy can't see that pydantic fills fields from the environment.
 - ruff and ruff-format run only on `.py`/`.pyi` in pre-commit: ruff 0.16 also rewrites Python blocks inside Markdown (it once rewrote `research/*.md`).
 - New workspace members must be listed explicitly in the root `[tool.uv.workspace] members`; a `services/*` glob fails on folders without a `pyproject.toml`.
-- `astral-sh/setup-uv` publishes no major-version tag: pin it by commit SHA.
+- Every GitHub Action is pinned by commit SHA with a `# vX.Y.Z` comment (`astral-sh/setup-uv` has no major tags anyway); let Dependabot bump them.
+- `docker` comes from OrbStack (`~/.orbstack/bin`, added to PATH by `~/.zprofile`); a shell opened before OrbStack's first launch won't find it.
 - Postgres 18 images mount their volume at `/var/lib/postgresql`, not `/var/lib/postgresql/data`.
 - Hostnames in `.env` (`postgres`, `s3`, `mlflow`, `fraud-kafka-kafka-bootstrap`) resolve on the host through an `/etc/hosts` line pointing them at `127.0.0.1`.
 - `S3ObjectStore.put_bytes(if_absent=True)` relies on `IfNoneMatch`, verified on moto but not yet on SeaweedFS (check in P1.T3).

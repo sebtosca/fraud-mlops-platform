@@ -1,32 +1,32 @@
 # Progress: Fraud ML Platform
 
-Plan: PLAN.md · Last updated: 2026-10-07 18:45
-Overall: 3/92 tasks · Phase 1 of 11
+Plan: PLAN.md · Last updated: 2026-10-07 19:50
+Overall: 5/92 tasks · Phase 1 of 11
 PRD coverage: 0/72 stories verified
 
 ## Current state
-- **Working on:** next up, P1.T6 — Sample fixture and data download guide (not started).
-- **Status / approach:** P1.T1, P1.T2 and P1.T5 are done and pushed on branch `data_drift`. Docker is not installed, so the tasks that need no Docker (P1.T5, P1.T6, P1.T9) are being done before P1.T3. The full Sparkov dataset is downloaded and verified in `data/raw/` (1,296,675 / 555,719 rows). P1.T6 plan: `docs/data.md`; `scripts/make_fixture.py` picks about 8 whole fraud-card episodes (4 in 2019, 4 in 2020; 14 days before the first fraud to 1 day after) plus about 15 cards over Jan 1–14 of each year, with a fixed seed; asserts 2k–4k rows, all 14 categories, both years, some fraud, and the raw contract; writes `tests/fixtures/sparkov_sample.csv`; then `tests/unit/test_fixture.py`.
-- **Also open:** P1.T10 (secret scan, Action pinning, dependency audit) needs no Docker either.
-- **Next after this:** P1.T3 — Compose infrastructure stack (needs Docker). In P1.T3, also check that SeaweedFS honours `IfNoneMatch="*"`; if it does not, `S3ObjectStore.put_bytes` needs a head-then-put fallback.
+- **Working on:** next up, P1.T3 — Compose infrastructure stack.
+- **Status / approach:** P1.T1, P1.T2, P1.T5, P1.T6 and P1.T10 are done on branch `data_drift`. Docker now works (OrbStack 29.4; `docker` is on PATH in new terminals via `~/.zprofile`). Before P1.T3, the owner must add `127.0.0.1  postgres s3 mlflow fraud-kafka-kafka-bootstrap` to `/etc/hosts` (needs sudo). P1.T3 plan: build `deploy/compose/docker-compose.yml` one service at a time (Postgres → SeaweedFS → Kafka → MLflow), every port published as `127.0.0.1:<port>:<port>` (TM-001), memory limits per RESEARCH §08 (Postgres 512m, SeaweedFS 400m, Kafka 1.25g, MLflow 512m). Postgres 18 volume at `/var/lib/postgresql`.
+- **Also open:** P1.T9 (logging and invariant tests) needs no Docker.
+- **Next after this:** P1.T4 — Fraud database schema and migration runner. In P1.T3, also check that SeaweedFS honours `IfNoneMatch="*"`; if it does not, `S3ObjectStore.put_bytes` needs a head-then-put fallback.
 
 ## Blockers
-- **Docker is not installed** (`brew install --cask orbstack`). It blocks P1.T3, P1.T4, P1.T7 and P1.T8, and the Phase 1 checkpoint. Waiting on the user. P1.T6 and P1.T9 can be done without it.
+None. (Docker was resolved on 2026-10-07: OrbStack was installed but had never been opened.)
 
 ## Phases
 Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 
-### Phase 1 — Repo and local platform skeleton (3/10)
+### Phase 1 — Repo and local platform skeleton (5/10)
 - [x] P1.T1 — Repo scaffold and uv workspace (US-1) · 2026-10-05 · ad8b8fa
 - [x] P1.T2 — Settings and infrastructure adapters (ports and adapters) (US-1) · 2026-10-07 · 3ecb912
 - [ ] P1.T3 — Compose infrastructure stack (US-1)
 - [ ] P1.T4 — Fraud database schema and migration runner (US-1)
 - [x] P1.T5 — Transaction data contract (pandera) (US-3) · 2026-10-07 · 527e3b3
-- [ ] P1.T6 — Sample fixture and data download guide (US-2)
+- [x] P1.T6 — Sample fixture and data download guide (US-2) · 2026-10-07 · fcffd34
 - [ ] P1.T7 — Ingest job (bronze → silver snapshots) (US-2, US-4, US-5)
 - [ ] P1.T8 — Lineage helper for MLflow runs (US-5)
 - [ ] P1.T9 — Structured logging and invariant guard tests (US-4, TM-001, TM-002)
-- [ ] P1.T10 — Repo security baseline (secret scan, pinning, dependency audit) (TM-102, TM-103)
+- [x] P1.T10 — Repo security baseline (secret scan, pinning, dependency audit) (TM-102, TM-103) · 2026-10-07 · see session log
 
 ### Phase 2 — Features, Champion and streaming scoring (0/7)
 - [ ] P2.T1 — Per-card state function (ADR-0002) (US-7, US-8)
@@ -131,6 +131,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P11.T8 — Go-public checklist (TM-102, TM-104)
 
 ## Deviations from plan
+- 2026-10-07 · P1.T6 · The fixture has 12 fraud episodes (6 per year) and 40 background cards, 2,828 rows / 736 KiB, so `check-added-large-files` allows 1 MiB. Offsets use `datetime.timedelta` because pandas 2.3 + NumPy 2.5 warns on every `pd.Timedelta`.
+- 2026-10-07 · P1.T10 · The dependency audit uses uv's built-in `uv audit` (experimental, OSV database) instead of pip-audit or Trivy. The CI secret scan runs the official gitleaks image pinned by digest instead of the gitleaks GitHub Action (one less third-party action). The gitleaks pre-commit hook is skipped in the CI lint job, because it only scans staged changes; the `secrets` job scans the full history.
 - 2026-10-05 · P1.T1 · ruff and ruff-format in pre-commit are limited to `.py`/`.pyi` files: ruff 0.16 also reformats Python code blocks inside Markdown and rewrote about 800 lines of `research/*.md`. `trailing-whitespace` keeps Markdown line breaks.
 - 2026-10-05 · P1.T1 · Added `[tool.ruff.lint.isort] known-first-party = ["fraud"]`, so imports in `tests/` sort correctly.
 - 2026-10-05 · CI (Phase 6, early) · Added a GitHub Actions workflow (`.github/workflows/ci.yml`: pre-commit, unit tests with coverage, `fraud-core` wheel build) ahead of Phase 6. The repo is on GitHub; DISCOVERY Q140 allows GitHub Actions with a GitLab note in the README. Phase 6 is still planned for GitLab; decide later whether its stages move to GitHub Actions. `astral-sh/setup-uv` is pinned by commit SHA, because it publishes no major-version tag.
@@ -140,6 +142,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - 2026-10-07 · Commits · The P1.T1 commit (ad8b8fa) also holds most of P1.T2, and its message overstates what it contains (no drift detection or promotion exists yet). The PR description corrects this.
 
 ## Session log
+- 2026-10-07 · P1.T10 · gitleaks pre-commit hook and CI history scan (both proven to block a fake AWS key; real history clean, 10 commits), all Actions pinned by SHA, Dependabot, `uv audit` job (no known vulnerabilities in 66 packages).
+- 2026-10-07 · P1.T6 · `docs/data.md`, `scripts/make_fixture.py` (deterministic), `tests/fixtures/sparkov_sample.csv` (2,828 rows, 52 cards, 147 fraud rows), 6 fixture tests (43 total passing) · fcffd34
+- 2026-10-07 · Docker unblocked: OrbStack opened for the first time; docker 29.4 client and server.
 - 2026-10-07 · THREAT-MODEL.md created (TM-001–007, TM-101–105). Added P1.T10, P6.T10, P11.T8 to PLAN.md and here; P1.T9 gains the 127.0.0.1 port rule.
 - 2026-10-07 · PROGRESS.md created from PLAN.md and the PRD story map.
 - 2026-10-07 · P1.T5 · Transaction data contract and 17 tests (37 total passing) · 527e3b3

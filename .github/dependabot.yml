@@ -1,0 +1,24 @@
+# Keeps SHA-pinned actions and uv.lock current (THREAT-MODEL TM-103).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+    ignore:
+      # Pinned below 3 on purpose: PySpark and pandera are not ready for pandas 3 (RESEARCH §04).
+      - dependency-name: pandas
+        versions: [">=3"]
+      - dependency-name: pandas-stubs
+        versions: [">=3"]

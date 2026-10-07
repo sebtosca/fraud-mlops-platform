@@ -26,7 +26,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P1.T7 — Ingest job (bronze → silver snapshots) (US-2, US-4, US-5)
 - [ ] P1.T8 — Lineage helper for MLflow runs (US-5)
 - [ ] P1.T9 — Structured logging and invariant guard tests (US-4, TM-001, TM-002)
-- [x] P1.T10 — Repo security baseline (secret scan, pinning, dependency audit) (TM-102, TM-103) · 2026-10-07 · see session log
+- [x] P1.T10 — Repo security baseline (secret scan, pinning, dependency audit) (TM-102, TM-103) · 2026-10-07 · 5035007
 
 ### Phase 2 — Features, Champion and streaming scoring (0/7)
 - [ ] P2.T1 — Per-card state function (ADR-0002) (US-7, US-8)
@@ -142,7 +142,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - 2026-10-07 · Commits · The P1.T1 commit (ad8b8fa) also holds most of P1.T2, and its message overstates what it contains (no drift detection or promotion exists yet). The PR description corrects this.
 
 ## Session log
-- 2026-10-07 · P1.T10 · gitleaks pre-commit hook and CI history scan (both proven to block a fake AWS key; real history clean, 10 commits), all Actions pinned by SHA, Dependabot, `uv audit` job (no known vulnerabilities in 66 packages).
+- 2026-10-07 · P1.T10 · gitleaks pre-commit hook and CI history scan (both proven to block a fake AWS key; real history clean, 10 commits), all Actions pinned by SHA, Dependabot, `uv audit` job (no known vulnerabilities in 66 packages) · 5035007
 - 2026-10-07 · P1.T6 · `docs/data.md`, `scripts/make_fixture.py` (deterministic), `tests/fixtures/sparkov_sample.csv` (2,828 rows, 52 cards, 147 fraud rows), 6 fixture tests (43 total passing) · fcffd34
 - 2026-10-07 · Docker unblocked: OrbStack opened for the first time; docker 29.4 client and server.
 - 2026-10-07 · THREAT-MODEL.md created (TM-001–007, TM-101–105). Added P1.T10, P6.T10, P11.T8 to PLAN.md and here; P1.T9 gains the 127.0.0.1 port rule.

@@ -1,0 +1,200 @@
+# Part A infrastructure: Postgres, SeaweedFS (S3), Kafka (KRaft) and MLflow.
+# Start with `make up` from the repo root, which passes `--env-file .env`.
+#
+# Rules (ARCHITECTURE invariants, THREAT-MODEL TM-001):
+# - every port is published on 127.0.0.1 only: none of these services has real auth;
+# - every image is pinned (never :latest) and every container has a memory limit
+#   (RESEARCH §08 slim budget, about 2.7 GiB in total);
+# - network aliases match the future Kubernetes Service names, so `.env` works in both.
+
+name: fraud
+
+services:
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: postgres
+    volumes:
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+      - pgdata:/var/lib/postgresql  # Postgres 18 path; not .../data
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      fraud:
+        aliases: [postgres]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d fraud_local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
+
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    # `mini` runs master, volume, filer and S3 in one process and creates the buckets.
+    # The S3 admin identity comes from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+    command: ["mini", "-dir=/data", "-bucket=lake,mlflow", "-admin.ui=false"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?set in .env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?set in .env}
+    volumes:
+      - s3data:/data
+    ports:
+      - "127.0.0.1:8333:8333"
+    networks:
+      fraud:
+        aliases: [s3]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 400m
+    restart: unless-stopped
+
+  # One-shot: turn on versioning for both buckets (idempotent).
+  s3-init:
+    image: amazon/aws-cli:2.37.10
+    depends_on:
+      s3:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?set in .env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?set in .env}
+      AWS_DEFAULT_REGION: ${REGION:-us-east-1}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        for bucket in lake mlflow; do
+          aws --endpoint-url http://s3:8333 s3api put-bucket-versioning \
+            --bucket "$$bucket" --versioning-configuration Status=Enabled
+          echo "$$bucket versioning: $$(aws --endpoint-url http://s3:8333 s3api get-bucket-versioning --bucket $$bucket --query Status --output text)"
+        done
+    networks: [fraud]
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    restart: "no"
+
+  kafka:
+    image: apache/kafka:4.3.1
+    environment:
+      CLUSTER_ID: ax88Lg1aT36cESqNTnufMA
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      # One name for containers and the host: the host maps it to 127.0.0.1 in /etc/hosts.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://fraud-kafka-kafka-bootstrap:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:9092:9092"
+    networks:
+      fraud:
+        aliases: [fraud-kafka-kafka-bootstrap]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1280m
+    restart: unless-stopped
+
+  # One-shot: create the topics (idempotent).
+  kafka-init:
+    image: apache/kafka:4.3.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      TOPIC_PREFIX: ${TOPIC_PREFIX:?set in .env}
+      KAFKA_HEAP_OPTS: -Xmx128m
+    volumes:
+      - ./kafka-topics.sh:/kafka-topics.sh:ro
+    entrypoint: ["/bin/sh", "/kafka-topics.sh"]
+    networks: [fraud]
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    restart: "no"
+
+  mlflow:
+    build:
+      context: ../../images/mlflow
+      dockerfile: Containerfile
+    image: fraud-mlflow:3.16.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://s3:8333
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?set in .env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?set in .env}
+      AWS_DEFAULT_REGION: ${REGION:-us-east-1}
+      # Server-side job execution (GenAI judge/eval jobs) starts a job runner and ~8 huey
+      # worker processes, ~180 MiB each: 1.6 GiB idle, OOM-killed at 768m. Not needed until
+      # Phase 9; re-enable there and raise the limit.
+      MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"
+      # Read by `mlflow server --backend-store-uri` (envvar), so the password is not in the command line.
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow
+    # Artifacts are proxied by the server, so clients never need S3 credentials for MLflow.
+    # --allowed-hosts: 3.16 rejects service-name Host headers with a 403 by default.
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --workers=1
+      - --artifacts-destination=s3://mlflow
+      - --allowed-hosts=mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      fraud:
+        aliases: [mlflow]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    restart: unless-stopped
+
+networks:
+  fraud:
+
+volumes:
+  pgdata:
+  s3data:
+  kafkadata:

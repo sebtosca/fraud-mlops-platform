@@ -1,12 +1,13 @@
 # Progress: Fraud ML Platform
 
 Plan: PLAN.md · Last updated: 2026-10-07 18:45
-Overall: 3/89 tasks · Phase 1 of 11
+Overall: 3/92 tasks · Phase 1 of 11
 PRD coverage: 0/72 stories verified
 
 ## Current state
 - **Working on:** next up, P1.T6 — Sample fixture and data download guide (not started).
 - **Status / approach:** P1.T1, P1.T2 and P1.T5 are done and pushed on branch `data_drift`. Docker is not installed, so the tasks that need no Docker (P1.T5, P1.T6, P1.T9) are being done before P1.T3. The full Sparkov dataset is downloaded and verified in `data/raw/` (1,296,675 / 555,719 rows). P1.T6 plan: `docs/data.md`; `scripts/make_fixture.py` picks about 8 whole fraud-card episodes (4 in 2019, 4 in 2020; 14 days before the first fraud to 1 day after) plus about 15 cards over Jan 1–14 of each year, with a fixed seed; asserts 2k–4k rows, all 14 categories, both years, some fraud, and the raw contract; writes `tests/fixtures/sparkov_sample.csv`; then `tests/unit/test_fixture.py`.
+- **Also open:** P1.T10 (secret scan, Action pinning, dependency audit) needs no Docker either.
 - **Next after this:** P1.T3 — Compose infrastructure stack (needs Docker). In P1.T3, also check that SeaweedFS honours `IfNoneMatch="*"`; if it does not, `S3ObjectStore.put_bytes` needs a head-then-put fallback.
 
 ## Blockers
@@ -15,7 +16,7 @@ PRD coverage: 0/72 stories verified
 ## Phases
 Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 
-### Phase 1 — Repo and local platform skeleton (3/9)
+### Phase 1 — Repo and local platform skeleton (3/10)
 - [x] P1.T1 — Repo scaffold and uv workspace (US-1) · 2026-10-05 · ad8b8fa
 - [x] P1.T2 — Settings and infrastructure adapters (ports and adapters) (US-1) · 2026-10-07 · 3ecb912
 - [ ] P1.T3 — Compose infrastructure stack (US-1)
@@ -24,7 +25,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P1.T6 — Sample fixture and data download guide (US-2)
 - [ ] P1.T7 — Ingest job (bronze → silver snapshots) (US-2, US-4, US-5)
 - [ ] P1.T8 — Lineage helper for MLflow runs (US-5)
-- [ ] P1.T9 — Structured logging and invariant guard tests (US-4)
+- [ ] P1.T9 — Structured logging and invariant guard tests (US-4, TM-001, TM-002)
+- [ ] P1.T10 — Repo security baseline (secret scan, pinning, dependency audit) (TM-102, TM-103)
 
 ### Phase 2 — Features, Champion and streaming scoring (0/7)
 - [ ] P2.T1 — Per-card state function (ADR-0002) (US-7, US-8)
@@ -65,7 +67,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P5.T10 — Model card (US-40)
 - [ ] P5.T11 — Part A README (US-66)
 
-### Phase 6 — GitLab CI pipeline (0/9)
+### Phase 6 — GitLab CI pipeline (0/10)
 - [ ] P6.T1 — GitLab project and self-hosted runners (user-performed, guided) (US-45)
 - [ ] P6.T2 — Lint and test stages (US-41)
 - [ ] P6.T3 — SonarQube Cloud quality gate (US-41)
@@ -75,6 +77,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P6.T7 — API contract tests and OpenAPI diff (US-12, US-41)
 - [ ] P6.T8 — Push gated images to the GitLab registry (US-44)
 - [ ] P6.T9 — Secret detection and SAST components (US-46)
+- [ ] P6.T10 — Self-hosted runner hardening check (user-performed, guided) (TM-101, TM-104, TM-105)
 
 ### Phase 7 — kind platform and GitOps (0/10)
 - [ ] P7.T1 — Host prerequisites (user-performed, guided) (US-47)
@@ -117,7 +120,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P10.T6 — Terraform tests and CI jobs (US-63)
 - [ ] P10.T7 — GCP cost and target-architecture doc (US-65)
 
-### Phase 11 — Docs, Level 2 mapping and interview pack (0/7)
+### Phase 11 — Docs, Level 2 mapping and interview pack (0/8)
 - [ ] P11.T1 — Final README (US-66)
 - [ ] P11.T2 — Build vs buy (US-67)
 - [ ] P11.T3 — MLOps Level 2 mapping (US-68)
@@ -125,6 +128,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - [ ] P11.T5 — Optional: Grafana dashboard (US-72)
 - [ ] P11.T6 — Interview walkthrough and talking points (US-70)
 - [ ] P11.T7 — Fresh-clone rehearsal (US-71)
+- [ ] P11.T8 — Go-public checklist (TM-102, TM-104)
 
 ## Deviations from plan
 - 2026-10-05 · P1.T1 · ruff and ruff-format in pre-commit are limited to `.py`/`.pyi` files: ruff 0.16 also reformats Python code blocks inside Markdown and rewrote about 800 lines of `research/*.md`. `trailing-whitespace` keeps Markdown line breaks.
@@ -136,6 +140,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped
 - 2026-10-07 · Commits · The P1.T1 commit (ad8b8fa) also holds most of P1.T2, and its message overstates what it contains (no drift detection or promotion exists yet). The PR description corrects this.
 
 ## Session log
+- 2026-10-07 · THREAT-MODEL.md created (TM-001–007, TM-101–105). Added P1.T10, P6.T10, P11.T8 to PLAN.md and here; P1.T9 gains the 127.0.0.1 port rule.
 - 2026-10-07 · PROGRESS.md created from PLAN.md and the PRD story map.
 - 2026-10-07 · P1.T5 · Transaction data contract and 17 tests (37 total passing) · 527e3b3
 - 2026-10-07 · Dataset · Sparkov downloaded to `data/raw/`; row counts verified.

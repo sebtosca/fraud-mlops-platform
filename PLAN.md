@@ -79,6 +79,7 @@ Choices made while planning, inside the settled DISCOVERY decisions and ADRs:
 14. **Cluster topology** is decided by the GPU spike (P7.T2) and recorded in ADR-0006. Use nvkind with a control-plane plus one GPU worker if it works within the ~2 h timebox. Otherwise use a single-node kind cluster and run vLLM as a Docker container on the `kind` network.
 15. **Schema migrations.** Numbered plain-SQL files applied by `fraud db migrate`, a small runner with a `schema_migrations` table. No ORM.
 16. **Added from ARCHITECTURE.md (2026-10-04):** P1.T9 (structured logging and invariant guard tests), to enforce the invariants listed in ARCHITECTURE.md.
+17. **Added from THREAT-MODEL.md (2026-10-07):** P1.T10 (secret scan, Action pinning, dependency audit; TM-102, TM-103), P6.T10 (self-hosted runner hardening; TM-101, TM-104, TM-105) and P11.T8 (go-public checklist; TM-102, TM-104). P1.T9 also checks that published ports bind to 127.0.0.1 (TM-001).
 
 ## Out of scope
 - Java, Keras/TensorFlow, Jenkins (mentioned in the README), Oracle, Elasticsearch, MongoDB (DISCOVERY Q31).
@@ -94,17 +95,17 @@ Choices made while planning, inside the settled DISCOVERY decisions and ADRs:
 ## Phases at a glance
 | Phase | Name | Outcome | Tasks |
 |---|---|---|---|
-| 1 | Repo and local platform skeleton | `make up` runs Postgres, Kafka, SeaweedFS and MLflow on Compose; `make ingest` writes validated snapshots | 9 |
+| 1 | Repo and local platform skeleton | `make up` runs Postgres, Kafka, SeaweedFS and MLflow on Compose; `make ingest` writes validated snapshots | 10 |
 | 2 | Features, Champion and streaming scoring | 2020 replays through Kafka; the scorer writes Champion predictions with exactly-once effects | 7 |
 | 3 | Decisions, Labels and the feedback loop | Decisions, the Exploration sample and delayed Labels flow; IPW metrics exist | 6 |
 | 4 | Shift injection and monitoring | Shifts are injected with ground truth; drift and action-rate alerts fire; null replay calibrated | 7 |
 | 5 | Continual learning and `make demo` (end of Part A) | Alert → retrain → Shadow → promote, unattended, with `reports/results.md` | 11 |
-| 6 | GitLab CI pipeline | Lint, test, Sonar, UBI builds, Trivy and model gates run on the self-hosted runner; images pushed | 9 |
+| 6 | GitLab CI pipeline | Lint, test, Sonar, UBI builds, Trivy and model gates run on the self-hosted runner; images pushed | 10 |
 | 7 | kind platform and GitOps | Argo CD deploys platform and apps; `main` → staging with k6 and contract verification; tag → prod | 10 |
 | 8 | Airflow and Spark on kind | Asset-triggered DAGs run Spark medallion, retraining, batch scoring and promotion per env | 8 |
 | 9 | LLM Case summaries | vLLM serves Ministral 3 8B; the case-summary service writes summaries; the prompt eval gate runs in CI | 8 |
 | 10 | GCP Terraform | Portable GKE / Cloud SQL / GCS code passes fmt, validate, test, tflint and checkov in CI | 7 |
-| 11 | Docs, Level 2 mapping and interview pack | README, build-vs-buy, Level 2 table, walkthrough, rehearsal done | 7 |
+| 11 | Docs, Level 2 mapping and interview pack | README, build-vs-buy, Level 2 table, walkthrough, rehearsal done | 8 |
 
 ---
 
@@ -190,12 +191,20 @@ Choices made while planning, inside the settled DISCOVERY decisions and ADRs:
   - no `datetime.now`/`time.time` in `fraud.features`, `fraud.jobs` (except `benchmark`) or the services' business logic;
   - no `timestamp=` argument on Kafka `produce` calls;
   - Helm and Compose manifests never use `:latest` image tags and always set memory limits.
+  - every published Compose port is bound to `127.0.0.1` (`127.0.0.1:<host>:<container>`), and kind `extraPortMappings` set `listenAddress: 127.0.0.1` (THREAT-MODEL TM-001).
 
   Extend it as new invariants become checkable.
 - **Files:** `packages/fraud-core/src/fraud/logging.py`, `tests/unit/test_invariants.py`, `tests/unit/test_logging.py`
 - **Depends on:** P1.T2
 - **Source:** ARCHITECTURE.md Invariants; DISCOVERY Q22
 - **Done when:** both tests are green. A temp module that violates any rule makes `test_invariants.py` fail, and logging a 16-digit number outputs it masked.
+
+### P1.T10 — Repo security baseline (secret scan, pinning, dependency audit)
+- **What:** Add a `gitleaks` hook to `.pre-commit-config.yaml` and a blocking `secrets` job to `.github/workflows/ci.yml` (`gitleaks` pinned by digest or SHA). Pin every GitHub Action by commit SHA with a `# vX.Y.Z` comment. Add `.github/dependabot.yml` for `github-actions` and `uv`. Add a dependency audit job that scans `uv.lock` (for example `uvx pip-audit` on an exported requirements file, or `trivy fs`) and fails on critical or high findings.
+- **Files:** `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `.github/dependabot.yml`
+- **Depends on:** P1.T1
+- **Source:** THREAT-MODEL TM-102, TM-103
+- **Done when:** committing a fake AWS key is blocked by pre-commit and by CI; every `uses:` line is a 40-character SHA; the audit job runs green on `main`.
 
 ### Phase 1 checkpoint
 `make up && uv run fraud db migrate && make ingest`, then check that `aws --endpoint-url http://localhost:8333 s3 ls s3://lake/silver/transactions/ --recursive` shows the snapshot with `_MANIFEST.json`, and that `uv run pytest -m "not integration"` and `uv run pytest -m integration` are both green.
@@ -663,6 +672,13 @@ On a clean checkout with `data/raw` present, run `make demo`. Then check that `r
 - **Source:** RESEARCH §06 Q1
 - **Done when:** both jobs run on MR pipelines and their reports are attached as artifacts.
 
+### P6.T10 — Self-hosted runner hardening check (user-performed, guided)
+- **What:** On the Linux GPU box, beyond P6.T1: run `gitlab-runner` as a dedicated non-login user with no access to the owner's home or `~/.ssh`; set CI/CD visibility to "Only project members"; protect `main` and `v*` tags; confirm no runner is privileged or mounts the Docker socket; scope the `kind` runner's kubeconfig to read-only on `staging` and `prod`. Record the settings and the rule "never run a fork MR pipeline in the parent project" in `docs/ops/runner-security.md`.
+- **Files:** `docs/ops/runner-security.md`, `deploy/runner/config.toml.example`
+- **Depends on:** P6.T1
+- **Source:** THREAT-MODEL TM-101, TM-104, TM-105; RESEARCH §06 Q2
+- **Done when:** a job running `id` and `ls ~/.ssh` as the runner shows the runner user and no access; a fork MR does not start a pipeline on the project runners; the settings page screenshots are linked from the doc.
+
 ### Phase 6 checkpoint
 Open an MR that touches `services/scoring`. The pipeline runs lint, test (with the contract test), Sonar, a build of scoring only, Trivy and the model gate, all green. Merge it: the `main` pipeline pushes `scoring:git-<sha>` to the GitLab registry.
 
@@ -1088,6 +1104,13 @@ An MR touching `infra/terraform` runs `terraform:checks`, `terraform:tflint` and
 - **Depends on:** P11.T1, P11.T6
 - **Source:** DISCOVERY Q17
 - **Done when:** the rehearsal log shows each built phase's checkpoint passing from a fresh clone, with timings.
+
+### P11.T8 — Go-public checklist
+- **What:** Before switching the repo to public: run `gitleaks detect` over the full history and rotate any credential found (history rewrites are not enough); confirm `THREAT-MODEL.md` is untracked and absent from history (it is kept private); enable push protection and secret scanning; check branch and tag protection; check that `.env.example` holds placeholders only.
+- **Files:** `docs/ops/go-public.md`
+- **Depends on:** P1.T10, P6.T10
+- **Source:** THREAT-MODEL TM-102, TM-104
+- **Done when:** the history scan is clean (or every finding is rotated and noted), and the checklist is ticked in `docs/ops/go-public.md`.
 
 ### Phase 11 checkpoint
 A reader with only the repo can run Part A, follow the Part B docs for every built phase, find every number's source report, and deliver the 2-minute walkthrough.

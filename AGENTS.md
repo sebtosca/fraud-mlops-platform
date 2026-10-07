@@ -97,6 +97,8 @@ Copied from THREAT-MODEL.md. For security-sensitive work, also use the `security
 ## Gotchas
 - pandas is pinned `<3` workspace-wide (PySpark and pandera support), and `pandas-stubs` is pinned `<3` to match.
 - Import pandera as `import pandera.pandas as pa`. It has no `str_fullmatch`; `str_matches` anchors only at the start, so `Matches` appends `\Z`.
+- pandas 2.3 with NumPy 2.5 emits a DeprecationWarning on every `pd.Timedelta(...)`; use `datetime.timedelta` for offsets.
+- `tests/fixtures/sparkov_sample.csv` is generated: change `scripts/make_fixture.py` and rerun it, never edit the CSV by hand. The large-files hook allows up to 1 MiB for it.
 - `Settings()` needs `# type: ignore[call-arg]`: mypy can't see that pydantic fills fields from the environment.
 - ruff and ruff-format run only on `.py`/`.pyi` in pre-commit: ruff 0.16 also rewrites Python blocks inside Markdown (it once rewrote `research/*.md`).
 - New workspace members must be listed explicitly in the root `[tool.uv.workspace] members`; a `services/*` glob fails on folders without a `pyproject.toml`.

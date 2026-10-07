@@ -32,5 +32,8 @@ sbom-*.json
 CLAUDE.md
 # Python build output
 dist/
-# Internal threat model (kept private, see P11.T8)
-THREAT-MODEL.md
+# Project docs stay local: only README.md files are tracked
+*.md
+!README.md
+docs/
+research/

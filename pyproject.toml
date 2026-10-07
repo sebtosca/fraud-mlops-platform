@@ -23,6 +23,7 @@ dev = [
     "boto3-stubs[s3]>=1.43.108",
     "moto[s3]>=5.2.3",
     "mypy",
+    "pandas-stubs>=2.2,<3",
     "pre-commit",
     "pytest",
     "pytest-cov",
